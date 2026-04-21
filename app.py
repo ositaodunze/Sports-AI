@@ -1,27 +1,29 @@
 import streamlit as st
 import io
 from groq import Groq
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 st.set_page_config(page_title="Black Mamba Sports AI", page_icon="🐍", layout="wide")
 
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-# ── Image Generation (Gemini) ──────────────────────────────────────────────────
-
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+# ── Image Generation (Gemini Imagen) ──────────────────────────────────────────
+gemini_client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 
 def generate_image(prompt):
     try:
-        model = genai.ImageGenerationModel("imagen-3.0-generate-002")
-        result = model.generate_images(
+        result = gemini_client.models.generate_images(
+            model="imagen-3.0-generate-002",
             prompt=prompt,
-            number_of_images=1,
-            aspect_ratio="1:1",
+            config=types.GenerateImagesConfig(
+                number_of_images=1,
+                output_mime_type="image/jpeg",
+            ),
         )
-        image = result.images[0]._pil_image
+        image = result.generated_images[0].image
         buf = io.BytesIO()
-        image.save(buf, format="PNG")
+        image.save(buf, format="JPEG")
         return buf.getvalue()
     except Exception as e:
         st.error(f"Image generation error: {e}")
