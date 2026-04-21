@@ -4,6 +4,10 @@ from groq import Groq
 from google import genai
 from google.genai import types
 
+st.set_page_config(page_title="Black Mamba Sports AI", page_icon="🐍", layout="wide")
+
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])   =
+
 gemini_client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 
 def generate_image(prompt):
