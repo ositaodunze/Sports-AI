@@ -13,7 +13,7 @@ gemini_client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 def generate_image(prompt):
     try:
         response = gemini_client.models.generate_content(
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.5-flash-image",   # ← change this line
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_modalities=["TEXT", "IMAGE"]
