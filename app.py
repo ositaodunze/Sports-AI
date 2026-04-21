@@ -4,27 +4,22 @@ from groq import Groq
 from google import genai
 from google.genai import types
 
-st.set_page_config(page_title="Black Mamba Sports AI", page_icon="🐍", layout="wide")
-
-client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-
-# ── Image Generation (Gemini Imagen) ──────────────────────────────────────────
 gemini_client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 
 def generate_image(prompt):
     try:
-        result = gemini_client.models.generate_images(
-            model="imagen-3.0-generate-002",
-            prompt=prompt,
-            config=types.GenerateImagesConfig(
-                number_of_images=1,
-                output_mime_type="image/jpeg",
+        response = gemini_client.models.generate_content(
+            model="gemini-2.0-flash-exp",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_modalities=["TEXT", "IMAGE"]
             ),
         )
-        image = result.generated_images[0].image
-        buf = io.BytesIO()
-        image.save(buf, format="JPEG")
-        return buf.getvalue()
+        for part in response.candidates[0].content.parts:
+            if part.inline_data is not None:
+                buf = io.BytesIO(part.inline_data.data)
+                return buf.getvalue()
+        return None
     except Exception as e:
         st.error(f"Image generation error: {e}")
         return None
