@@ -3,3 +3,4 @@ groq
 huggingface_hub
 requests
 Pillow
+google-generativeai

@@ -1,26 +1,25 @@
 import streamlit as st
 import io
-import requests
 from groq import Groq
-from huggingface_hub import InferenceClient
+import google.generativeai as genai
 
 st.set_page_config(page_title="Black Mamba Sports AI", page_icon="🐍", layout="wide")
 
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
+# ── Image Generation (Gemini) ──────────────────────────────────────────────────
 
-# ── Image Generation ───────────────────────────────────────────────────────────
-
-HF_TOKEN = st.secrets["HF_TOKEN"]
-
-hf_client = InferenceClient(provider="auto", api_key=HF_TOKEN)
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
 def generate_image(prompt):
     try:
-        image = hf_client.text_to_image(
-            prompt,
-            model="black-forest-labs/FLUX.1-schnell",
+        model = genai.ImageGenerationModel("imagen-3.0-generate-002")
+        result = model.generate_images(
+            prompt=prompt,
+            number_of_images=1,
+            aspect_ratio="1:1",
         )
+        image = result.images[0]._pil_image
         buf = io.BytesIO()
         image.save(buf, format="PNG")
         return buf.getvalue()
@@ -28,7 +27,8 @@ def generate_image(prompt):
         st.error(f"Image generation error: {e}")
         return None
 
-# System Prompts 
+# ── System Prompts ─────────────────────────────────────────────────────────────
+
 KOBE_CONTEXT = """
 IMPORTANT CONTEXT ABOUT KOBE:
 Kobe Bryant passed away on January 26, 2020, in a helicopter crash in Calabasas, California.
@@ -122,7 +122,7 @@ RULES:
 - If someone seems deeply distressed, respond with care and encourage them to talk to someone they trust.
 """
 
-# Session State 
+# ── Session State ──────────────────────────────────────────────────────────────
 
 for key, prompt in [("sports", SPORTS_PROMPT), ("routine", ROUTINE_PROMPT), ("meditation", MEDITATION_PROMPT)]:
     if f"{key}_messages" not in st.session_state:
@@ -133,7 +133,8 @@ for key, prompt in [("sports", SPORTS_PROMPT), ("routine", ROUTINE_PROMPT), ("me
 if "routine_started" not in st.session_state:
     st.session_state.routine_started = False
 
-# Chat Helper
+# ── Chat Helper ────────────────────────────────────────────────────────────────
+
 def chat(user_prompt, tab):
     st.session_state[f"{tab}_messages"].append({"role": "user", "content": user_prompt})
     st.session_state[f"{tab}_display"].append({"role": "user", "content": user_prompt})
@@ -147,7 +148,8 @@ def chat(user_prompt, tab):
     st.session_state[f"{tab}_messages"].append({"role": "assistant", "content": reply})
     st.session_state[f"{tab}_display"].append({"role": "assistant", "content": reply})
 
-#Sidebar
+# ── Sidebar ────────────────────────────────────────────────────────────────────
+
 with st.sidebar:
     st.image(
         "https://m.media-amazon.com/images/I/71W-dp1NBsL._AC_UF894,1000_QL80_.jpg",
@@ -162,19 +164,19 @@ with st.sidebar:
     st.markdown("**💪 Kobe Routine** — Get your personalized plan")
     st.markdown("**🧘 Mindset & Meditation** — Reflect and recharge")
     st.markdown("---")
-    st.caption("Powered by Groq + Llama 3")
+    st.caption("Powered by Groq + Llama 3 + Gemini Imagen")
 
-#Header 
+# ── Header ─────────────────────────────────────────────────────────────────────
+
 st.title("🐍 Black Mamba Sports AI 🐐")
 st.caption('"The moment you give up is the moment you let someone else win." — Kobe Bryant')
 st.divider()
 
-# Tabs 
+# ── Tabs ───────────────────────────────────────────────────────────────────────
 
 tab1, tab2, tab3 = st.tabs(["🏀 Sports Knowledge", "💪 Kobe Routine", "🧘 Mindset & Meditation"])
 
-
-# TAB 1 — SPORTS KNOWLEDGE
+# ── TAB 1 — SPORTS KNOWLEDGE ───────────────────────────────────────────────────
 
 with tab1:
     st.subheader("🏀 Sports Knowledge")
@@ -189,40 +191,36 @@ with tab1:
                 width=500
             )
 
-    # Render full history first
     for msg in st.session_state.sports_display:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # 🎨 Image button — only shows after a conversation starts
+    # 🏆 Visualize Your Win — generates a victory moment from the conversation
     if st.session_state.sports_display:
-        if st.button("🎨 Visualize the Moment", key="img_sports"):
+        if st.button("🏆 Visualize Your Win", key="img_sports"):
             last_user_msg = next(
                 (m["content"] for m in reversed(st.session_state.sports_display) if m["role"] == "user"),
-                "sports moment"
+                "sports victory moment"
             )
-            with st.spinner("Generating image... this may take 20–30 seconds"):
+            with st.spinner("Visualizing your win..."):
                 img = generate_image(
-                    f"Cinematic sports photography: {last_user_msg}, "
-                    f"dramatic arena lighting, professional, photorealistic, no text"
+                    f"A powerful cinematic sports victory moment: {last_user_msg}. "
+                    f"Triumphant athlete, dramatic stadium lighting, crowd in background, "
+                    f"photorealistic, highly detailed, no text, no words"
                 )
             if img:
-                st.image(img, caption="🎨 Visualized Moment", width=600)
-            else:
-                st.warning("Image generation failed. Make sure your Hugging Face token is set, then try again.")
+                st.image(img, caption="🏆 Visualize Your Win", width=600)
 
-    # Input always at the bottom
     if prompt := st.chat_input("Ask a sports question...", key="sports"):
         chat(prompt, "sports")
         st.rerun()
 
+# ── TAB 2 — KOBE ROUTINE ───────────────────────────────────────────────────────
 
-# TAB 2 — KOBE ROUTINE
 with tab2:
     st.subheader("💪 Kobe Routine Builder")
 
     if not st.session_state.routine_started:
-        # Show image and form before chat begins
         st.image(
             "https://i.imgur.com/Wjl1UIQ.jpeg",
             caption="Mamba Mentality — outwork everyone",
@@ -258,32 +256,28 @@ with tab2:
             st.rerun()
 
     else:
-        # Show current profile summary
         if st.session_state.routine_display:
             first_user_msg = st.session_state.routine_display[0]["content"]
             st.caption(f"📋 Profile: {first_user_msg.split('Build')[0].strip()}")
 
         st.markdown("---")
 
-        # Render full history
         for msg in st.session_state.routine_display:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
 
-        # 🎨 Image button — visualize your future self
-        if st.button("🎨 Visualize Your Future Self", key="img_routine"):
-            goal_line = st.session_state.routine_display[0]["content"] if st.session_state.routine_display else "athletic performance"
-            with st.spinner("Generating image... this may take 20–30 seconds"):
+        # 🍽️ Build My Plate — generates a meal based on their goal
+        if st.button("🍽️ Build My Plate", key="img_routine"):
+            goal_line = st.session_state.routine_display[0]["content"] if st.session_state.routine_display else "high protein healthy meal"
+            with st.spinner("Building your plate..."):
                 img = generate_image(
-                    f"Elite athlete, {goal_line}, peak physical condition, "
-                    f"motivational, cinematic lighting, photorealistic, no text"
+                    f"A photorealistic, beautifully plated healthy meal perfectly suited for: {goal_line}. "
+                    f"Meal prep style, fresh whole ingredients, restaurant quality presentation, "
+                    f"overhead flat lay shot, natural lighting, no text, no words, no labels"
                 )
             if img:
-                st.image(img, caption="🎨 Your Future Self — stay locked in", width=600)
-            else:
-                st.warning("Image generation failed. Make sure your Hugging Face token is set, then try again.")
+                st.image(img, caption="🍽️ Your Personalized Plate", width=600)
 
-        # Input at the bottom
         if prompt := st.chat_input("Ask about your plan, nutrition, recovery...", key="routine"):
             chat(prompt, "routine")
             st.rerun()
@@ -294,12 +288,12 @@ with tab2:
             st.session_state.routine_display = []
             st.rerun()
 
-# TAB 3 — MINDSET & MEDITATION
+# ── TAB 3 — MINDSET & MEDITATION ──────────────────────────────────────────────
+
 with tab3:
     st.subheader("🧘 Mindset & Meditation")
     st.caption("A space to reflect, decompress, and reconnect. Kobe's wisdom, your growth.")
 
-    # Show image and opening quote only before first message
     if not st.session_state.meditation_display:
         st.image(
             "https://pbs.twimg.com/media/CmF929HWEAAlQxp.jpg",
@@ -312,29 +306,26 @@ with tab3:
             'How are you doing today — for real?" — Kobe'
         )
 
-    # Render full history
     for msg in st.session_state.meditation_display:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # 🎨 Image button — abstract reflection art
+    # 🎨 Reflect My Feeling — abstract emotional art
     if st.session_state.meditation_display:
         if st.button("🎨 Reflect My Feeling", key="img_meditation"):
             last_user_msg = next(
                 (m["content"] for m in reversed(st.session_state.meditation_display) if m["role"] == "user"),
                 "peaceful reflection"
             )
-            with st.spinner("Creating your reflection... this may take 20–30 seconds"):
+            with st.spinner("Creating your reflection..."):
                 img = generate_image(
-                    f"Abstract emotional art: {last_user_msg}, symbolic, "
-                    f"cinematic, dramatic lighting, painterly, no people, no text, fine art style"
+                    f"Abstract emotional fine art inspired by this feeling: {last_user_msg}. "
+                    f"Symbolic, cinematic, dramatic lighting, painterly brushstrokes, "
+                    f"no people, no faces, no text, no words, museum quality art"
                 )
             if img:
                 st.image(img, caption="🎨 Your Reflection", width=600)
-            else:
-                st.warning("Image generation failed. Make sure your Hugging Face token is set, then try again.")
 
-    # Input always at the bottom
     if prompt := st.chat_input("How are you feeling today?", key="meditation"):
         chat(prompt, "meditation")
         st.rerun()
