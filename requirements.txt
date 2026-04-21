@@ -1,3 +1,5 @@
 streamlit
-groqhuggingface_hub
+groq
+huggingface_hub
 requests
+Pillow
